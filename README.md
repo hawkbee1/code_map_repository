@@ -1,61 +1,65 @@
-# Code Map Repository
+# code_map_repository
 
 [![style: very good analysis][very_good_analysis_badge]][very_good_analysis_link]
-[![Powered by Mason](https://img.shields.io/endpoint?url=https%3A%2F%2Ftinyurl.com%2Fmason-badge)](https://github.com/felangel/mason)
 [![License: MIT][license_badge]][license_link]
 
-The dart_code_3D repository that builds, opens, imports, stores and shares code maps.
+The repository the [dart_code_3D](https://github.com/hawkbee1/dart_code_3d) blocs use: it
+**builds** code maps (fetch → analyze → layout → encode), **opens**, **imports**, **stores**
+and **shares** them. Pure Dart.
 
-## Installation 💻
+## Part of hawkbee
 
-**❗ In order to start using Code Map Repository you must have the [Dart SDK][dart_install_link] installed on your machine.**
-
-Install via `dart pub add`:
-
-```sh
-dart pub add code_map_repository
-```
-
----
-
-## Continuous Integration 🤖
-
-Code Map Repository comes with a built-in [GitHub Actions workflow][github_actions_link] powered by [Very Good Workflows][very_good_workflows_link] but you can also add your preferred CI/CD solution.
-
-Out of the box, on each pull request and push, the CI `formats`, `lints`, and `tests` the code. This ensures the code remains consistent and behaves correctly as you add functionality or make changes. The project uses [Very Good Analysis][very_good_analysis_link] for a strict set of analysis options used by our team. Code coverage is enforced using the [Very Good Workflows][very_good_workflows_link].
-
----
-
-## Running Tests 🧪
-
-To run all unit tests:
+This repository is a git submodule of the
+[hawkbee](https://github.com/hawkbee1/hawkbee) monorepo and **only builds inside it**:
 
 ```sh
-dart pub global activate coverage 1.15.0
-dart test --coverage=coverage
-dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info
+git clone --recurse-submodules https://github.com/hawkbee1/hawkbee.git
+cd hawkbee && flutter pub get
 ```
 
-To view the generated coverage report you can use [lcov](https://github.com/linux-test-project/lcov).
+## Usage
+
+```dart
+final repository = CodeMapRepository(
+  sourceClient: CodeSourceClient(),
+  store: InMemoryCodeMapStore(), // the app provides platform storage
+);
+await for (final event in repository.build(source, rules, cancel: token)) {
+  switch (event) {
+    case BuildProgress(:final stage, :final fraction):
+      print('$stage ${(fraction * 100).round()}%');
+    case BuildSucceeded(:final file):
+      await repository.save(file);
+    case BuildFailed(:final failure):
+      print('${failure.kind}: ${failure.message}');
+  }
+}
+```
+
+- **Progress** is weighted per stage (fetch 0–20%, analysis 20–80%, layout 80–95%, encoding
+  95–100%) and never goes backwards.
+- **Failures** are typed (`BuildFailureKind`: source not found, invalid URL, private or missing
+  repository, rate limited, network, invalid archive, unsupported on web, invalid file,
+  analysis error, cancelled), with a message and technical details.
+- The fetched code (`SourceSnapshot`) is **always disposed**, including on cancel.
+- The analysis runs through `defaultEngineRunner()` and layout, encoding and decoding through
+  `defaultMapWorker()`: isolates on native platforms, inline on the web.
+- `open(file)` decodes for the viewer; `importBytes(name, bytes)` accepts `.dc3d` and plain
+  `.fscene` (a newer schema gives an "update the app" failure); `exportForSharing(file)` gives
+  `<name>.dc3d`; `recent()` lists stored maps newest first.
+- `CodeMapStore` is implemented by the app with platform storage; `InMemoryCodeMapStore` serves
+  tests and the web.
+
+Measured on 2026-10-04, building from a local folder: flutter_scene in 7.8 s (1.64 MB), AltMe in
+7.6 s (1.50 MB); opening either takes about 0.85 s.
+
+## Running tests
 
 ```sh
-# Generate Coverage Report
-genhtml coverage/lcov.info -o coverage/
-
-# Open Coverage Report
-open coverage/index.html
+very_good test --coverage
 ```
 
-[dart_install_link]: https://dart.dev/get-dart
-[github_actions_link]: https://docs.github.com/en/actions/learn-github-actions
 [license_badge]: https://img.shields.io/badge/license-MIT-blue.svg
 [license_link]: https://opensource.org/licenses/MIT
-[logo_black]: https://raw.githubusercontent.com/VGVentures/very_good_brand/main/styles/README/vgv_logo_black.png#gh-light-mode-only
-[logo_white]: https://raw.githubusercontent.com/VGVentures/very_good_brand/main/styles/README/vgv_logo_white.png#gh-dark-mode-only
-[mason_link]: https://github.com/felangel/mason
 [very_good_analysis_badge]: https://img.shields.io/badge/style-very_good_analysis-B22C89.svg
 [very_good_analysis_link]: https://pub.dev/packages/very_good_analysis
-[very_good_ventures_link]: https://verygood.ventures
-[very_good_ventures_link_light]: https://verygood.ventures#gh-light-mode-only
-[very_good_ventures_link_dark]: https://verygood.ventures#gh-dark-mode-only
-[very_good_workflows_link]: https://github.com/VeryGoodOpenSource/very_good_workflows
