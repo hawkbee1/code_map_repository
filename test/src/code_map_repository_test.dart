@@ -222,6 +222,31 @@ void main() {
       });
     });
 
+    group('openBytes', () {
+      test('decodes the bytes of a code map', () async {
+        final bytes = const CodeMapCodec().encodeToBytes(
+          CodeMap(graph: emptyGraph(), placements: const {}),
+        );
+
+        final map = await repository().openBytes(bytes);
+
+        expect(map.graph.project, emptyGraph().project);
+      });
+
+      test('throws an invalidFile failure for unreadable bytes', () {
+        expect(
+          () => repository().openBytes(Uint8List.fromList([1, 2, 3])),
+          throwsA(
+            isA<BuildFailure>().having(
+              (f) => f.kind,
+              'kind',
+              BuildFailureKind.invalidFile,
+            ),
+          ),
+        );
+      });
+    });
+
     group('importBytes', () {
       late CodeMap map;
 

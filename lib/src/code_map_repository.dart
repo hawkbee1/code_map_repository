@@ -141,9 +141,16 @@ class CodeMapRepository {
   /// Decodes [file] for the viewer.
   ///
   /// Throws a [BuildFailure] (`invalidFile`) when it cannot be read.
-  Future<CodeMap> open(CodeMapFile file) async {
+  Future<CodeMap> open(CodeMapFile file) => openBytes(file.bytes);
+
+  /// Decodes `.dc3d` or `.fscene` [bytes] for the viewer, off the UI
+  /// thread on native platforms.
+  ///
+  /// Throws a [BuildFailure] (`invalidFile`) when they are not a readable
+  /// code map, including a map written by a newer app.
+  Future<CodeMap> openBytes(Uint8List bytes) async {
     try {
-      return await _worker.decode(file.bytes);
+      return await _worker.decode(bytes);
     } on CodeMapFormatException catch (e) {
       throw BuildFailure(BuildFailureKind.invalidFile, e.message);
     }
