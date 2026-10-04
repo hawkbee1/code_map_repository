@@ -152,6 +152,9 @@ enum BuildFailureKind {
   /// The analysis (or layout) failed: a bug.
   analysisError,
 
+  /// The stored maps could not be read or written (disk full, permissions).
+  storage,
+
   /// The user cancelled.
   cancelled,
 }
