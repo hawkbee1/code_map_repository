@@ -358,6 +358,63 @@ void main() {
       expect(await repo.load('old'), isNull);
     });
 
+    group('when the store fails', () {
+      late CodeMapRepository repo;
+
+      setUp(() {
+        repo = CodeMapRepository(
+          sourceClient: FakeSourceClient(const []),
+          store: _FailingStore(),
+        );
+      });
+
+      Matcher storageFailure(String message) => throwsA(
+        isA<BuildFailure>()
+            .having((f) => f.kind, 'kind', BuildFailureKind.storage)
+            .having((f) => f.message, 'message', message)
+            .having((f) => f.details, 'details', contains('disk full')),
+      );
+
+      test('recent throws a storage failure', () {
+        expect(
+          repo.recent,
+          storageFailure('The stored maps could not be read.'),
+        );
+      });
+
+      test('load throws a storage failure', () {
+        expect(
+          () => repo.load('x'),
+          storageFailure('The map could not be read.'),
+        );
+      });
+
+      test('save throws a storage failure', () {
+        expect(
+          () => repo.save(
+            CodeMapFile(
+              id: 'x',
+              name: 'x',
+              bytes: Uint8List(1),
+              project: ProjectInfo(
+                generator: 'g',
+                source: const ZipDescriptor(fileName: 'a.zip'),
+                createdAt: DateTime.utc(2026),
+              ),
+            ),
+          ),
+          storageFailure('The map could not be saved.'),
+        );
+      });
+
+      test('delete throws a storage failure', () {
+        expect(
+          () => repo.delete('x'),
+          storageFailure('The map could not be deleted.'),
+        );
+      });
+    });
+
     test('uses the platform runner and worker by default', () async {
       final repo = CodeMapRepository(
         sourceClient: FakeSourceClient([FetchDone(snapshot)]),
@@ -369,4 +426,19 @@ void main() {
       expect(last, isA<BuildSucceeded>());
     });
   });
+}
+
+/// A store whose every operation fails.
+class _FailingStore implements CodeMapStore {
+  @override
+  Future<void> save(CodeMapFile file) => Future.error(StateError('disk full'));
+
+  @override
+  Future<List<CodeMapSummary>> list() => Future.error(StateError('disk full'));
+
+  @override
+  Future<CodeMapFile?> load(String id) => Future.error(StateError('disk full'));
+
+  @override
+  Future<void> delete(String id) => Future.error(StateError('disk full'));
 }

@@ -187,20 +187,44 @@ class CodeMapRepository {
   );
 
   /// The stored maps, newest first.
-  Future<List<CodeMapSummary>> recent() async =>
-      (await _store.list())..sort((a, b) {
+  ///
+  /// Throws a [BuildFailure] (`storage`) when the store cannot be read, like
+  /// [load], [save] and [delete].
+  Future<List<CodeMapSummary>> recent() => _inStorage(
+    'The stored maps could not be read.',
+    () async => (await _store.list())
+      ..sort((a, b) {
         final byDate = b.createdAt.compareTo(a.createdAt);
         return byDate != 0 ? byDate : a.id.compareTo(b.id);
-      });
+      }),
+  );
 
   /// The stored file [id], or null.
-  Future<CodeMapFile?> load(String id) => _store.load(id);
+  Future<CodeMapFile?> load(String id) =>
+      _inStorage('The map could not be read.', () => _store.load(id));
 
   /// Stores [file].
-  Future<void> save(CodeMapFile file) => _store.save(file);
+  Future<void> save(CodeMapFile file) =>
+      _inStorage('The map could not be saved.', () => _store.save(file));
 
   /// Deletes the stored file [id].
-  Future<void> delete(String id) => _store.delete(id);
+  Future<void> delete(String id) =>
+      _inStorage('The map could not be deleted.', () => _store.delete(id));
+
+  static Future<T> _inStorage<T>(
+    String message,
+    Future<T> Function() action,
+  ) async {
+    try {
+      return await action();
+    } on Object catch (error, stackTrace) {
+      throw BuildFailure(
+        BuildFailureKind.storage,
+        message,
+        details: '$error\n$stackTrace',
+      );
+    }
+  }
 
   static double _analysisFraction(AnalysisStage stage, int done, int total) {
     final share = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
