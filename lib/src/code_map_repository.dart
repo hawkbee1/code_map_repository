@@ -35,6 +35,8 @@ class CodeMapRepository {
   final MapWorker _worker;
   final DateTime Function() _clock;
 
+  final _changes = StreamController<void>.broadcast(sync: true);
+
   static const _cancelled = BuildFailure(
     BuildFailureKind.cancelled,
     'The analysis was cancelled.',
@@ -186,6 +188,9 @@ class CodeMapRepository {
     bytes: file.bytes,
   );
 
+  /// Fires after a map was saved or deleted, so lists can refresh.
+  Stream<void> get changes => _changes.stream;
+
   /// The stored maps, newest first.
   ///
   /// Throws a [BuildFailure] (`storage`) when the store cannot be read, like
@@ -205,11 +210,17 @@ class CodeMapRepository {
 
   /// Stores [file].
   Future<void> save(CodeMapFile file) =>
-      _inStorage('The map could not be saved.', () => _store.save(file));
+      _inStorage('The map could not be saved.', () async {
+        await _store.save(file);
+        _changes.add(null);
+      });
 
   /// Deletes the stored file [id].
   Future<void> delete(String id) =>
-      _inStorage('The map could not be deleted.', () => _store.delete(id));
+      _inStorage('The map could not be deleted.', () async {
+        await _store.delete(id);
+        _changes.add(null);
+      });
 
   static Future<T> _inStorage<T>(
     String message,

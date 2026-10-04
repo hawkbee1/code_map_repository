@@ -358,6 +358,45 @@ void main() {
       expect(await repo.load('old'), isNull);
     });
 
+    group('changes', () {
+      CodeMapFile aFile() => CodeMapFile(
+        id: 'x',
+        name: 'x',
+        bytes: Uint8List(1),
+        project: ProjectInfo(
+          generator: 'g',
+          source: const ZipDescriptor(fileName: 'a.zip'),
+          createdAt: DateTime.utc(2026),
+        ),
+      );
+
+      test('fires after a map is saved and after it is deleted', () async {
+        final repo = repository();
+        var fired = 0;
+        repo.changes.listen((_) => fired++);
+
+        await repo.save(aFile());
+        expect(fired, 1);
+        await repo.delete('x');
+
+        expect(fired, 2);
+      });
+
+      test('does not fire when the store fails', () async {
+        final repo = CodeMapRepository(
+          sourceClient: FakeSourceClient(const []),
+          store: _FailingStore(),
+        );
+        var fired = 0;
+        repo.changes.listen((_) => fired++);
+
+        await expectLater(repo.save(aFile()), throwsA(isA<BuildFailure>()));
+        await expectLater(repo.delete('x'), throwsA(isA<BuildFailure>()));
+
+        expect(fired, 0);
+      });
+    });
+
     group('when the store fails', () {
       late CodeMapRepository repo;
 
