@@ -8,14 +8,10 @@ environment:
   sdk: ^3.13.0
 
 dependencies:
-  code_analysis_engine:
-    path: ../code_analysis_engine
-  code_graph:
-    path: ../code_graph
-  code_layout:
-    path: ../code_layout
-  code_source_client:
-    path: ../code_source_client
+  code_analysis_engine: ^0.1.0
+  code_graph: ^0.1.0
+  code_layout: ^0.1.0
+  code_source_client: ^0.1.0
   equatable: ^3.0.0
   meta: ^1.16.0
 
